@@ -437,6 +437,13 @@ _: {
     vim.keymap.set('c', '<C-j>', '<C-n>', { noremap = true })
     vim.keymap.set('c', '<C-k>', '<C-p>', { noremap = true })
 
+    -- Terminal mode navigation (to escape terminal and move between windows)
+    vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', { noremap = true, silent = true })
+    vim.keymap.set('t', '<C-h>', '<C-\\><C-n><C-w>h', { noremap = true, silent = true })
+    vim.keymap.set('t', '<C-j>', '<C-\\><C-n><C-w>j', { noremap = true, silent = true })
+    vim.keymap.set('t', '<C-k>', '<C-\\><C-n><C-w>k', { noremap = true, silent = true })
+    vim.keymap.set('t', '<C-l>', '<C-\\><C-n><C-w>l', { noremap = true, silent = true })
+
     local wk = require('which-key')
     wk.add({
       { "<leader>b", group = "Buffer" },

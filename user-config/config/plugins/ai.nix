@@ -143,7 +143,9 @@
       local actions = require("telescope.actions")
       local action_state = require("telescope.actions.state")
 
-      pickers.new({}, {
+      pickers.new({
+        initial_mode = "normal",
+      }, {
         prompt_title = "OpenCode Sessions",
         finder = finders.new_table({
           results = sessions,
@@ -165,14 +167,14 @@
               return
             end
             local session = selection.value
-            _G.opencode_open_terminal(session.dir, session.title)
+            _G.opencode_open_terminal(session.dir, session.title, session.id)
           end)
           return true
         end,
       }):find()
     end
 
-    function _G.opencode_open_terminal(dir, title)
+    function _G.opencode_open_terminal(dir, title, session_id)
       -- Close existing opencode window if any
       if opencode_win and vim.api.nvim_win_is_valid(opencode_win) then
         vim.api.nvim_win_close(opencode_win, true)
@@ -189,6 +191,8 @@
       vim.api.nvim_win_set_width(opencode_win, 55)
       -- Re-use the buffer that vnew created, don't make a new one
       opencode_buf = vim.api.nvim_win_get_buf(opencode_win)
+      -- Hide terminal buffer from buffer list (won't show in <S-h>/<S-l> cycling)
+      vim.api.nvim_buf_set_option(opencode_buf, "buflisted", false)
 
       -- Name the buffer BEFORE termopen so it shows immediately
       if title then
@@ -221,14 +225,18 @@
         return
       end
 
-      -- Start opencode as a terminal job on the existing buffer
-      local shell_cmd = "cd " .. vim.fn.shellescape(dir) .. " && " .. vim.fn.shellescape(oneclick_bin)
+      -- Start opencode with --session to open SPECIFIC session
+      local shell_cmd
+      if session_id then
+        shell_cmd = "cd " .. vim.fn.shellescape(dir) .. " && " .. vim.fn.shellescape(oneclick_bin) .. " --session " .. vim.fn.shellescape(session_id)
+      else
+        shell_cmd = "cd " .. vim.fn.shellescape(dir) .. " && " .. vim.fn.shellescape(oneclick_bin)
+      end
       vim.fn.termopen(shell_cmd, {
         on_exit = function(job_id, exit_code, event_type)
           vim.schedule(function()
             -- Close the window and clean up when opencode exits
             if opencode_win and vim.api.nvim_win_is_valid(opencode_win) then
-              -- Check if it's the last window; if so don't close
               local wins = vim.api.nvim_tabpage_list_wins(0)
               if #wins > 1 then
                 vim.api.nvim_win_close(opencode_win, true)

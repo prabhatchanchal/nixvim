@@ -96,6 +96,20 @@ _: {
               separator = true;
             }
           ];
+          custom_filter.__raw = ''
+            function(buf_number, buf_numbers)
+              -- Hide terminal buffers and unnamed buffers from bufferline
+              local bufname = vim.fn.bufname(buf_number)
+              local buftype = vim.api.nvim_buf_get_option(buf_number, "buftype")
+              if buftype == "terminal" then
+                return false
+              end
+              if bufname == "" then
+                return false
+              end
+              return true
+            end
+          '';
         };
       };
     };

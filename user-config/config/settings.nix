@@ -15,7 +15,6 @@ in
     cursorline = true;
     cursorlineopt = "number";
     signcolumn = "yes";
-    colorcolumn = "80";
 
     tabstop = 2;
     shiftwidth = 2;
@@ -61,6 +60,8 @@ in
     concealcursor = "";
     fillchars = {
       eob = " ";
+      vert = " ";
+      horiz = " ";
     };
 
     list = true;
@@ -176,4 +177,10 @@ in
   };
 
   luaLoader.enable = true;
+
+  extraConfigLua = ''
+    -- Make window separators invisible (no gray line between splits)
+    vim.api.nvim_set_hl(0, "WinSeparator", { fg = "none", bg = "none" })
+    vim.api.nvim_set_hl(0, "VertSplit", { fg = "none", bg = "none" })
+  '';
 }
