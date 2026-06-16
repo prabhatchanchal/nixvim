@@ -167,7 +167,8 @@
               return
             end
             local session = selection.value
-            _G.opencode_open_terminal(session.dir, session.title, session.id)
+            -- Open in CURRENT nvim directory, not the session's original directory
+            _G.opencode_open_terminal(vim.fn.getcwd(), session.title, session.id)
           end)
           return true
         end,
