@@ -5,8 +5,8 @@
   plugins.avante = {
     enable = true;
     settings = {
-      provider = "claude";
-      auto_suggestions_provider = "claude";
+      provider = "openai";
+      auto_suggestions_provider = "openai";
       behaviour = {
         auto_suggestions = false;
         auto_set_highlight_group = true;
@@ -14,6 +14,17 @@
         auto_apply_diff_after_generation = false;
         support_paste_from_clipboard = true;
         minimize_diff = true;
+      };
+      providers = {
+        openai = {
+          endpoint = "https://grid.ai.juspay.net";
+          model = "open-fast";
+          api_key_name = "JUSPAY_API_KEY";
+          timeout = 600000;
+          extra_request_body = {
+            temperature = 1.0;
+          };
+        };
       };
       mappings = {
         diff = {
@@ -91,6 +102,10 @@
     local opencode_win = nil
 
     function _G.opencode_pick_session()
+      -- Capture the current directory BEFORE opening the picker
+      -- vim.fn.getcwd() inside the callback returns nvim's launch dir, not buffer dir
+      local current_dir = vim.fn.getcwd()
+      
       -- Query sessions from opencode SQLite DB via python3
       local db_path = vim.fn.expand("~/.local/share/opencode/opencode.db")
       if vim.fn.filereadable(db_path) == 0 then
@@ -143,13 +158,26 @@
       local actions = require("telescope.actions")
       local action_state = require("telescope.actions.state")
 
-      pickers.new({
-        initial_mode = "normal",
-      }, {
+      -- Add "New Session" option at the top
+      table.insert(sessions, 1, {
+        id = "__new__",
+        title = "+ New Session",
+        dir = current_dir,
+        slug = "new",
+      })
+
+      pickers.new({}, {
         prompt_title = "OpenCode Sessions",
         finder = finders.new_table({
           results = sessions,
           entry_maker = function(entry)
+            if entry.id == "__new__" then
+              return {
+                value = entry,
+                display = "+ New Session",
+                ordinal = "0000 new session",
+              }
+            end
             local display = string.format("%s  %s", entry.title, entry.dir)
             return {
               value = entry,
@@ -167,8 +195,13 @@
               return
             end
             local session = selection.value
-            -- Open in CURRENT nvim directory, not the session's original directory
-            _G.opencode_open_terminal(vim.fn.getcwd(), session.title, session.id)
+            if session.id == "__new__" then
+              -- Open without --session to create a new one
+              _G.opencode_open_terminal(current_dir, nil, nil)
+            else
+              -- Open existing session
+              _G.opencode_open_terminal(current_dir, session.title, session.id)
+            end
           end)
           return true
         end,
@@ -189,7 +222,8 @@
       -- Open right-side terminal (vnew creates window + buffer together)
       vim.cmd("botright vnew")
       opencode_win = vim.api.nvim_get_current_win()
-      vim.api.nvim_win_set_width(opencode_win, 55)
+      -- 30% of screen width
+      vim.api.nvim_win_set_width(opencode_win, math.floor(vim.o.columns * 0.30))
       -- Re-use the buffer that vnew created, don't make a new one
       opencode_buf = vim.api.nvim_win_get_buf(opencode_win)
       -- Hide terminal buffer from buffer list (won't show in <S-h>/<S-l> cycling)
@@ -281,8 +315,12 @@
     {
       mode = "n";
       key = "<leader>ae";
-      action = "<cmd>AvanteEdit<cr>";
-      options.desc = "Avante edit selection";
+      action.__raw = ''
+        function()
+          vim.notify("Select code first, then press <leader>ae", vim.log.levels.WARN)
+        end
+      '';
+      options.desc = "Avante edit (select code first)";
     }
     {
       mode = "n";
@@ -293,7 +331,12 @@
     {
       mode = "v";
       key = "<leader>ae";
-      action = "<cmd>AvanteEdit<cr>";
+      action.__raw = ''
+        function()
+          vim.cmd("normal! gv")
+          vim.cmd("AvanteEdit")
+        end
+      '';
       options.desc = "Avante edit selection";
     }
   ];

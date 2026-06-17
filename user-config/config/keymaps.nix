@@ -443,6 +443,10 @@ _: {
     vim.keymap.set('t', '<C-j>', '<C-\\><C-n><C-w>j', { noremap = true, silent = true })
     vim.keymap.set('t', '<C-k>', '<C-\\><C-n><C-w>k', { noremap = true, silent = true })
     vim.keymap.set('t', '<C-l>', '<C-\\><C-n><C-w>l', { noremap = true, silent = true })
+    -- Ctrl+x sends raw Escape to terminal (for cancelling opencode)
+    vim.keymap.set('t', '<C-x>', function()
+      vim.api.nvim_feedkeys('\027', 'nt', false)
+    end, { noremap = true, silent = true })
 
     local wk = require('which-key')
     wk.add({

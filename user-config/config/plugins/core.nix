@@ -44,11 +44,39 @@ _: {
     better-escape = {
       enable = true;
       settings = {
-        mapping = [
-          "jk"
-          "jj"
-        ];
-        timeout = 200;
+        default_mappings = false;
+        mappings = {
+          i = {
+            j = {
+              k = "<Esc>";
+              j = "<Esc>";
+            };
+          };
+          c = {
+            j = {
+              k = "<Esc>";
+              j = "<Esc>";
+            };
+          };
+          t = {
+            j = {
+              k = "<Esc>";
+              j = "<Esc>";
+            };
+          };
+          v = {
+            j = {
+              k = "<Esc>";
+              j = "<Esc>";
+            };
+          };
+          s = {
+            j = {
+              k = "<Esc>";
+              j = "<Esc>";
+            };
+          };
+        };
       };
     };
   };

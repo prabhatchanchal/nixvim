@@ -93,14 +93,19 @@
         "systems": "systems"
       },
       "locked": {
-        "path": "..",
-        "type": "path"
+        "lastModified": 1781613570,
+        "narHash": "sha256-UP08JT9c4s1E2dGI9yA+G7HUtBMvdUMIIXFOhBq0pRM=",
+        "owner": "prabhatchanchal",
+        "repo": "nixvim",
+        "rev": "af40bdc8dfc97f22efa3ab4b4ef1b3778f43df00",
+        "type": "github"
       },
       "original": {
-        "path": "..",
-        "type": "path"
-      },
-      "parent": []
+        "owner": "prabhatchanchal",
+        "ref": "main",
+        "repo": "nixvim",
+        "type": "github"
+      }
     },
     "root": {
       "inputs": {
