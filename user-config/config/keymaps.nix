@@ -427,9 +427,21 @@ _: {
     }
     {
       mode = "n";
-      key = "<leader>lc";
-      action = "<cmd>lclose<cr>";
-      options.desc = "Close loclist";
+      key = "<C-s>";
+      action = "<cmd>w<cr>";
+      options.desc = "Save file";
+    }
+    {
+      mode = "i";
+      key = "<C-s>";
+      action = "<cmd>w<cr>";
+      options.desc = "Save file";
+    }
+    {
+      mode = "v";
+      key = "<C-s>";
+      action = "<cmd>w<cr>";
+      options.desc = "Save file";
     }
   ];
 
