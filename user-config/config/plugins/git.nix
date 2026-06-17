@@ -1,5 +1,17 @@
 { pkgs, ... }:
 let
+  # Fetch git-conflict.nvim directly (nixpkgs marks it unfree incorrectly)
+  git-conflict-nvim = pkgs.vimUtils.buildVimPlugin {
+    pname = "git-conflict-nvim";
+    version = "2025-01-15";
+    src = pkgs.fetchFromGitHub {
+      owner = "akinsho";
+      repo = "git-conflict.nvim";
+      rev = "v2.1.0";
+      hash = "sha256-1t0kKxTGLuOvuRkoLgkoqMZpF+oKo8+gMsTdgPsSb+8=";
+    };
+  };
+
   # When lazygit spawns $EDITOR, this wrapper runs inside lazygit's terminal.
   # It records the target file path, kills lazygit, and exits immediately.
   # Nvim polls for the marker file and opens the file in the parent window.
@@ -82,7 +94,30 @@ in
     diffview.enable = true;
   };
 
+  extraPlugins = [
+    git-conflict-nvim
+  ];
+
   extraConfigLua = ''
+    -- GitConflict setup with co/ct/cb keymaps
+    require('git-conflict').setup({
+      default_mappings = false,
+      default_commands = true,
+      disable_diagnostics = false,
+      list_opener = 'copen',
+      highlights = {
+        incoming = 'DiffText',
+        current = 'DiffAdd',
+      },
+    })
+
+    vim.keymap.set('n', 'co', '<Plug>(git-conflict-ours)', { desc = 'Accept ours' })
+    vim.keymap.set('n', 'ct', '<Plug>(git-conflict-theirs)', { desc = 'Accept theirs' })
+    vim.keymap.set('n', 'cb', '<Plug>(git-conflict-both)', { desc = 'Accept both' })
+    vim.keymap.set('n', 'c0', '<Plug>(git-conflict-none)', { desc = 'Accept none' })
+    vim.keymap.set('n', ']x', '<Plug>(git-conflict-prev-conflict)', { desc = 'Prev conflict' })
+    vim.keymap.set('n', '[x', '<Plug>(git-conflict-next-conflict)', { desc = 'Next conflict' })
+
     -- Wrap :LazyGit so that pressing 'e' inside lazygit kills lazygit
     -- and opens the file in the parent nvim window.
     vim.api.nvim_create_user_command("LazyGit", function()

@@ -331,12 +331,7 @@
     {
       mode = "v";
       key = "<leader>ae";
-      action.__raw = ''
-        function()
-          vim.cmd("normal! gv")
-          vim.cmd("AvanteEdit")
-        end
-      '';
+      action = ":AvanteEdit<CR>";
       options.desc = "Avante edit selection";
     }
   ];

@@ -434,7 +434,11 @@ _: {
     {
       mode = "i";
       key = "<C-s>";
-      action = "<cmd>w<cr>";
+      action.__raw = ''
+        function()
+          vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>:w<CR>", true, false, true), "n", false)
+        end
+      '';
       options.desc = "Save file";
     }
     {
