@@ -11,10 +11,8 @@ on:
       - installer/**
       - .github/workflows/installers.yml
 
-# report.sh files failures as issues; job logs here are not readable anonymously
 permissions:
   contents: read
-  issues: write
 
 jobs:
   linux:
@@ -29,15 +27,13 @@ jobs:
             --bundler github:NixOS/bundlers#toAppImage \
             './installer#packages.x86_64-linux.default' > build.log 2>&1
           rc=$?
-          cat build.log
           [ $rc -eq 0 ] || exit $rc
           cp -L appimage-link nixvim.x86_64-linux.AppImage
           chmod +x nixvim.x86_64-linux.AppImage
-      - name: Report failure publicly
+      - name: Surface the build log
         if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sh ./installer/report.sh build.log linux
+        run: sh ./installer/surface.sh build.log
+
       - uses: actions/upload-artifact@v5
         with:
           name: nixvim-x86_64-linux
@@ -54,9 +50,7 @@ jobs:
           nix build --accept-flake-config --no-link --print-out-paths \
             './installer#packages.x86_64-linux.windowsPayload' \
             './installer#packages.x86_64-linux.macosPayload' > out-paths.txt 2> build.log
-          rc=$?
-          cat build.log
-          [ $rc -eq 0 ] || exit $rc
+          [ $? -eq 0 ] || exit 1
       - name: Stage each target
         run: |
           set -eu
@@ -68,11 +62,10 @@ jobs:
           chmod +x staging-macos/install.sh
           tar -czf windows-staging.tar.gz -C staging-windows .
           tar -czf macos-staging.tar.gz -C staging-macos .
-      - name: Report failure publicly
+      - name: Surface the build log
         if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sh ./installer/report.sh build.log prepare-payload
+        run: sh ./installer/surface.sh build.log
+
       - uses: actions/upload-artifact@v5
         with:
           name: windows-staging
@@ -104,6 +97,7 @@ jobs:
           curl -fsSLO "https://github.com/neovim/neovim/releases/latest/download/nvim-macos-${{ matrix.arch }}.tar.gz"
           tar -xzf "nvim-macos-${{ matrix.arch }}.tar.gz" -C staging/nvim --strip-components=1
           tar -czf "nixvim-macos-${{ matrix.arch }}.tar.gz" -C staging .
+
       - uses: actions/upload-artifact@v5
         with:
           name: nixvim-macos-${{ matrix.arch }}
@@ -120,7 +114,7 @@ jobs:
           path: drop
       - name: Unpack payload
         run: |
-          mkdir -Force installer\windows\staging | Out-Null
+          New-Item -Force -ItemType Directory installer\windows\staging | Out-Null
           tar -xzf drop\windows-staging.tar.gz -C installer\windows\staging
       - name: Fetch official Neovim win64
         run: |
@@ -128,22 +122,33 @@ jobs:
           Invoke-WebRequest $url -OutFile nvim-win64.zip
           Expand-Archive nvim-win64.zip -DestinationPath nvim-tmp
           Move-Item nvim-tmp\nvim-win64 installer\windows\staging\nvim
-      - name: Install Inno Setup
-        run: choco install innosetup -y --no-progress
-      - name: Build installer
-        shell: powershell
+      # Named so a missing piece is visible from the public job/step listing.
+      - name: Require nvim exe config init.lua and plugins in staging
+        run: |
+          foreach ($p in 'installer\windows\staging\nvim\bin\nvim.exe',
+                         'installer\windows\staging\config\init.lua',
+                         'installer\windows\staging\plugins') {
+            if (-not (Test-Path $p)) { throw "missing: $p" }
+          }
+      - name: Locate Inno Setup
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          $log = & $iscc installer\windows\installer.nsi 2>&1
-          $log | ForEach-Object { Write-Host $_ }
-          $log | Out-File -Encoding utf8 build.log
+          if (-not (Test-Path $iscc)) {
+            Get-ChildItem "${env:ProgramFiles(x86)}" -Filter 'Inno*'
+            throw "not found: $iscc"
+          }
+          Set-Content -Path iscc-path.txt -Value $iscc
+      - name: Compile installer
+        shell: powershell
+        run: |
+          & (Get-Content iscc-path.txt) installer\windows\installer.nsi *>&1 |
+            Tee-Object -FilePath build.log
           exit $LASTEXITCODE
-      - name: Report failure publicly
+      - name: Surface the compiler log
         if: failure()
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sh ./installer/report.sh build.log windows-installer
+        run: sh ./installer/surface.sh build.log
+
       - uses: actions/upload-artifact@v5
         with:
           name: nixvim-windows

@@ -17,25 +17,24 @@ OutputDir=.
 OutputBaseFilename=NixvimSetup
 Compression=lzma2
 SolidCompression=yes
-ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\nvim-win64\bin\nvim.exe
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Code]
-function InitializeSetup(): Boolean;
+// The registry PATH edit below appends, so re-running the installer would
+// otherwise leave a stale entry pointing at this run's {app}.
+procedure InitializeUninstallProgressGate();
+var
+  Text: String;
 begin
-  if FileExists(ExpandConstant('{localappdata}\nvim\init.lua')) then
-    Result :=
-      MsgBox(
-        'Nixvim manages the whole Neovim config directory and will replace '
-        + ExpandConstant('{localappdata}\nvim') + '. Continue?',
-        mbConfirmation,
-        [mbYes, mbNo]
-      ) = mrYes
-  else
-    Result := True;
+  if RegQueryStringValue(HKCU, 'Environment', 'Path', Text) then
+  begin
+    StringChangeEx(Text, ExpandConstant('{app}\nvim-win64\bin'), '', True);
+    StringChangeEx(Text, ';;', ';', True);
+    RegWriteStringValue(HKCU, 'Environment', 'Path', Text);
+  end;
 end;
 
 [Files]
