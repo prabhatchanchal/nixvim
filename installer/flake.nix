@@ -31,7 +31,8 @@
 
           packages.windowsPayload = pkgs.callPackage ./collect.nix { inherit configuration; };
 
-          packages.macosPayload = pkgs.callPackage ./collect.nix {
+          # $HOME-relative, so one payload serves Linux and macOS.
+          packages.posixPayload = pkgs.callPackage ./collect.nix {
             inherit configuration;
             configRoot = "$HOME/.config/nvim";
             pluginRoot = "$HOME/.nixvim/plugins";

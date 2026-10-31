@@ -35,7 +35,7 @@ esac
 
 if [ -s "$here/needs-binaries.txt" ]; then
   echo
-  echo "these tools were baked into the Nix build and must be on your PATH:"
+  echo "commands from these tools were baked into the build and are not relocated:"
   sed 's/^/  /' "$here/needs-binaries.txt"
 fi
 

@@ -28,12 +28,16 @@ find "$dest/config" "$dest/plugins" -type f -exec sh -c '
 
 rm "$dest/rewrite.sed"
 
+# Nix bookkeeping that names store paths but is never read by neovim. Dropping
+# it keeps the shipped tree free of /nix/store so the installers can assert that.
+find "$dest/config" "$dest/plugins" -depth -name nix-support -type d -exec rm -rf {} +
+
 # Anything still pointing at the store is a compiled dependency we cannot
 # relocate; surface it instead of shipping a silently broken config.
-# nix-support metadata and a plugin's own dev scripts are never read by nvim.
+# A plugin's own dev scripts are never read by nvim either.
 leftovers=$(
   grep -rlI '/nix/store/' "$dest/config" "$dest/plugins" \
-    | grep -v -E '(^|/)nix-support/|/scripts/' || true
+    | grep -v -E '/scripts/' || true
 )
 if [ -n "$leftovers" ]; then
   echo "::warning::unrewritten /nix/store references remain:"
