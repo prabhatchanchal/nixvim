@@ -39,10 +39,12 @@ jobs:
           chmod +x staging-posix/install.sh
           tar -czf windows-staging.tar.gz -C staging-windows .
           tar -czf posix-staging.tar.gz -C staging-posix .
-      - name: Report what the rewrite left behind
+      - name: Require the rewrite to resolve every store path
         run: |
-          sh ./installer/assert-portable.sh staging-windows staging-posix ||
-            sh ./installer/surface.sh store-report.txt
+          hygiene=0
+          sh ./installer/assert-portable.sh staging-windows staging-posix || hygiene=$?
+          [ "$hygiene" -eq 0 ] || sh ./installer/surface.sh store-report.txt
+          exit "$hygiene"
       - name: Surface the build log
         if: failure()
         run: sh ./installer/surface.sh build.log
