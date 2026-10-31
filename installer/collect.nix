@@ -86,7 +86,7 @@ runCommand "nixvim-portable-payload" { }
     # Prelude first: plugins must be on the rtp before the generated config
     # calls require() on them
     {
-      echo '" Nixvim portable bundle: runtimepath reconstructed from vendored plugins'
+      echo '-- Nixvim portable bundle: runtimepath reconstructed from vendored plugins'
       cat ${builtins.toFile "rtp-prelude.lua" rtpPrelude}
       sed '/_host_prog/d' ${cfg.build.initFile}
     } > $out/config/init.lua

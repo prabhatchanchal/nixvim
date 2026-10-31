@@ -13,7 +13,10 @@ for dir in "$@"; do
     printf 'missing install directory: %s\n' "$dir" >>"$files"
     continue
   fi
-  grep -rlI '/nix/store/' "$dir" >>"$files" 2>/dev/null || :
+  # Upstream dev scripts keep nixpkgs-patched shebangs pointing at the store's
+  # bash. Neovim never sources them, so they are excluded exactly as in
+  # portable-rewrite.sh; anything that can load has to be clean.
+  { grep -rlI '/nix/store/' "$dir" | grep -vE '/scripts/'; } >>"$files" || :
 done
 
 if [ ! -s "$files" ]; then
