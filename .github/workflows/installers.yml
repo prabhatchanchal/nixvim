@@ -39,6 +39,10 @@ jobs:
           chmod +x staging-posix/install.sh
           tar -czf windows-staging.tar.gz -C staging-windows .
           tar -czf posix-staging.tar.gz -C staging-posix .
+      - name: Report what the rewrite left behind
+        run: |
+          sh ./installer/assert-portable.sh staging-windows staging-posix ||
+            sh ./installer/surface.sh store-report.txt
       - name: Surface the build log
         if: failure()
         run: sh ./installer/surface.sh build.log
@@ -144,26 +148,23 @@ jobs:
           mkdir bundle
           tar -xzf drop/nixvim-linux-x86_64.tar.gz -C bundle
           sh bundle/install.sh
-      - name: Confirm no store paths survived
+      - name: Validate the installed bundle
         run: |
-          set -eu
-          if grep -rl '/nix/store/' "$HOME/.config/nvim" "$HOME/.nixvim/plugins" > leftovers.txt; then
-            cat leftovers.txt
+          set -u
+          sh ./installer/assert-portable.sh "$HOME/.config/nvim" "$HOME/.nixvim/plugins"
+          hygiene=$?
+          "$HOME/.nixvim/nvim/bin/nvim" --headless \
+            -c "luafile $GITHUB_WORKSPACE/installer/check.lua" -c "qa!" >build.log 2>&1
+          load=$?
+          if [ $hygiene -ne 0 ] || [ $load -ne 0 ]; then
+            sh ./installer/surface.sh store-report.txt build.log
             exit 1
           fi
-      - name: Load plugins through the installed config
-        run: |
-          set -euo pipefail
-          "$HOME/.nixvim/nvim/bin/nvim" --headless \
-            -c "luafile $GITHUB_WORKSPACE/installer/check.lua" -c "qa!" 2>&1 |
-            tee build.log
-      - name: Surface the check log
-        if: failure()
-        run: sh ./installer/surface.sh build.log
 
   smoke-macos:
     needs: bundles
-    runs-on: macos-14
+    # macos-14 images are retired on 2026-11-02, so they now brown out
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v5
@@ -176,22 +177,18 @@ jobs:
           mkdir bundle
           tar -xzf drop/nixvim-macos-arm64.tar.gz -C bundle
           sh bundle/install.sh
-      - name: Confirm no store paths survived
+      - name: Validate the installed bundle
         run: |
-          set -eu
-          if grep -rl '/nix/store/' "$HOME/.config/nvim" "$HOME/.nixvim/plugins" > leftovers.txt; then
-            cat leftovers.txt
+          set -u
+          sh ./installer/assert-portable.sh "$HOME/.config/nvim" "$HOME/.nixvim/plugins"
+          hygiene=$?
+          "$HOME/.nixvim/nvim/bin/nvim" --headless \
+            -c "luafile $GITHUB_WORKSPACE/installer/check.lua" -c "qa!" >build.log 2>&1
+          load=$?
+          if [ $hygiene -ne 0 ] || [ $load -ne 0 ]; then
+            sh ./installer/surface.sh store-report.txt build.log
             exit 1
           fi
-      - name: Load plugins through the installed config
-        run: |
-          set -euo pipefail
-          "$HOME/.nixvim/nvim/bin/nvim" --headless \
-            -c "luafile $GITHUB_WORKSPACE/installer/check.lua" -c "qa!" 2>&1 |
-            tee build.log
-      - name: Surface the check log
-        if: failure()
-        run: sh ./installer/surface.sh build.log
 
   smoke-windows:
     needs: windows-installer
@@ -204,23 +201,18 @@ jobs:
           path: drop
       - name: Run the installer
         run: Start-Process -Wait -FilePath drop\NixvimSetup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART'
-      - name: Confirm no store paths survived
+      - name: Validate the installed bundle
         shell: bash
         run: |
-          set -eu
-          if grep -rl '/nix/store/' "$LOCALAPPDATA/nvim" "$LOCALAPPDATA/nvim-plugins" > leftovers.txt; then
-            cat leftovers.txt
-            exit 1
-          fi
-      - name: Load plugins through the installed config
-        shell: bash
-        run: |
-          set -euo pipefail
+          set -u
+          sh ./installer/assert-portable.sh "$LOCALAPPDATA/nvim" "$LOCALAPPDATA/nvim-plugins"
+          hygiene=$?
           # {autopf} resolves under LocalAppData for a lowest-privilege install
           check=$(cygpath -m "$GITHUB_WORKSPACE/installer/check.lua")
           "$LOCALAPPDATA/Programs/Nixvim/nvim-win64/bin/nvim.exe" --headless \
-            -c "luafile $check" -c "qa!" 2>&1 | tee build.log
-      - name: Surface the check log
-        if: failure()
-        shell: bash
-        run: sh ./installer/surface.sh build.log
+            -c "luafile $check" -c "qa!" >build.log 2>&1
+          load=$?
+          if [ $hygiene -ne 0 ] || [ $load -ne 0 ]; then
+            sh ./installer/surface.sh store-report.txt build.log
+            exit 1
+          fi
