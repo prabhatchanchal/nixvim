@@ -25,17 +25,15 @@ let
   # extraPlugins accepts either a bare package or a { plugin, config, optional } set
   unwrapPlugin = p: if p ? plugin then p.plugin else p;
 
-  # keyed by plugin name so duplicate names collapse to one vendored copy.
-  # build.extraFiles is the config dir itself (already copied), not a plugin.
-  pluginPackages = lib.attrValues (
-    lib.listToAttrs (
-      map (p: lib.nameValuePair (pluginName p) p) (
-        lib.unique (
-          lib.filter (p: p != null && p != cfg.build.extraFiles) (map unwrapPlugin cfg.extraPlugins)
-        )
-      )
-    )
-  );
+  # nixpkgs vim plugins declare their runtime dependencies through the
+  # `dependencies` attribute, and neovim's wrapper flattens that closure onto the
+  # runtimepath. Vendoring only the top-level list leaves plugins that require()
+  # their dependencies unloadable (telescope needs plenary).
+  depsOf = pkg: if builtins.isAttrs pkg && pkg ? dependencies then pkg.dependencies else [ ];
+
+  dependencyClosure =
+    pkg:
+    [ pkg ] ++ builtins.concatMap dependencyClosure (depsOf pkg);
 
   # Some entries (lua packages, the generated config dir) carry neither `name`
   # nor `pname`, so derive the label from the store path itself.
@@ -47,6 +45,22 @@ let
     # the name is only a label; drop its store-path context so it can be
     # interpolated into the prelude file and shell snippets
     builtins.unsafeDiscardStringContext (builtins.substring 33 (builtins.stringLength b - 33) b);
+
+  # Keyed by that label: two versions of one plugin would otherwise collide as
+  # duplicate attributes. The first occurrence wins, as lib.unique would decide.
+  pluginPackages = lib.attrValues (
+    builtins.foldl' (
+      acc: pkg:
+      let n = pluginName pkg; in acc // { "${n}" = acc."${n}" or pkg; }
+    ) { }
+    (
+      lib.unique (
+        builtins.concatMap dependencyClosure (
+          builtins.filter (pkg: pkg != null && pkg != cfg.build.extraFiles) (map unwrapPlugin cfg.extraPlugins)
+        )
+      )
+    )
+  );
 
   rtpPrelude = lib.concatStringsSep "\n" (
     map (

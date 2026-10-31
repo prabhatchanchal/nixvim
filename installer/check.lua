@@ -10,14 +10,26 @@ local expected = {
 
 local failed = {}
 
+-- the loader's own message names the missing module, which is the difference
+-- between "something did not resolve" and a fixable diagnosis
+local function attempt(fn, arg)
+  local ok, err = pcall(fn, arg)
+  if ok then
+    return
+  end
+  return (tostring(err):gsub("\n.*", "", 1))
+end
+
 for _, name in ipairs(expected) do
-  if not pcall(require, name) then
-    table.insert(failed, "plugin not loadable: " .. name)
+  local err = attempt(require, name)
+  if err then
+    table.insert(failed, name .. ": " .. err)
   end
 end
 
-if not pcall(vim.cmd.colorscheme, "catppuccin") then
-  table.insert(failed, "colorscheme not loadable: catppuccin")
+local scheme = attempt(vim.cmd.colorscheme, "catppuccin")
+if scheme then
+  table.insert(failed, "catppuccin: " .. scheme)
 end
 
 if #failed > 0 then
