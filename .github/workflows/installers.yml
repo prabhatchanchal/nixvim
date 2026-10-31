@@ -11,15 +11,23 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v30
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
       - name: Bundle nixvim into a self-contained executable
         run: |
-          nix bundle --bundler github:NixOS/bundlers#toAppImage \
-            ./installer#packages.x86_64-linux.default
-          cp -L result nixvim.x86_64-linux.AppImage
-          chmod +x nixvim.x86_64-linux.AppImage
-      - uses: actions/upload-artifact@v4
+          set +e
+          out=$(nix bundle --accept-flake-config --out-link appimage-link \
+            --bundler github:NixOS/bundlers#toAppImage \
+            './installer#packages.x86_64-linux.default' 2>&1)
+          rc=$?
+          # mirror into the public step summary: job logs require auth
+          printf '```\n%s\n```\n' "$out" >> "$GITHUB_STEP_SUMMARY"
+          if [ $rc -eq 0 ]; then
+            cp -L appimage-link nixvim.x86_64-linux.AppImage
+            chmod +x nixvim.x86_64-linux.AppImage
+          fi
+          exit $rc
+      - uses: actions/upload-artifact@v5
         with:
           name: nixvim-x86_64-linux
           path: nixvim.x86_64-linux.AppImage
@@ -34,8 +42,8 @@ jobs:
             system: aarch64-darwin
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v30
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
       - name: Build nixvim
         run: nix build --out-link nvim-result './installer#packages.${{ matrix.system }}.default'
       - name: Export nix closure into a relocatable archive
@@ -53,7 +61,7 @@ jobs:
           EOF
           echo "$OUT/bin/nvim" > archive/outpath.txt
           tar -czf nixvim-${{ matrix.system }}.tar.gz -C archive .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: nixvim-${{ matrix.system }}
           path: nixvim-${{ matrix.system }}.tar.gz
@@ -61,17 +69,23 @@ jobs:
   prepare-windows-payload:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v30
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
       - name: Build payload (generated config + vendored plugin sources)
-        run: nix build --out-link payload-link './installer#packages.x86_64-linux.windowsPayload'
+        run: |
+          set +e
+          out=$(nix build --accept-flake-config --out-link payload-link \
+            './installer#packages.x86_64-linux.windowsPayload' 2>&1)
+          rc=$?
+          { echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
       - name: Rewrite nix store paths to a local plugin root
         run: |
           set -euo pipefail
           PAYLOAD=$(cd payload-link && pwd -P)
           bash ./installer/windows/rewrite.sh "$PAYLOAD" staging
           tar -czf windows-staging.tar.gz -C staging .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: windows-staging
           path: windows-staging.tar.gz
@@ -80,8 +94,8 @@ jobs:
     needs: prepare-windows-payload
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v5
         with:
           name: windows-staging
           path: drop
@@ -91,8 +105,7 @@ jobs:
           tar -xzf drop\windows-staging.tar.gz -C installer\windows\staging
       - name: Fetch official Neovim win64
         run: |
-          $ver = (Invoke-RestMethod https://api.github.com/repos/neovim/neovim/releases/latest).tag_name
-          Invoke-WebRequest "https://github.com/neovim/neovim/releases/download/$ver/nvim-win64.zip" -OutFile nvim-win64.zip
+          Invoke-WebRequest "https://github.com/neovim/neovim/releases/latest/download/nvim-win64.zip" -OutFile nvim-win64.zip
           Expand-Archive nvim-win64.zip -DestinationPath installer\windows\
           Move-Item installer\windows\nvim-win64 installer\windows\staging\nvim
       - name: Install Inno Setup
@@ -101,7 +114,7 @@ jobs:
         shell: powershell
         run: |
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\windows\installer.nsi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: nixvim-windows
           path: installer\windows\NixvimSetup.exe

@@ -4,24 +4,46 @@
 ;   staging/plugins  = vendored plugin sources     -> %LOCALAPPDATA%\nvim-plugins
 ;   staging/nvim     = official nvim-win64 zip contents
 ; store paths inside config/plugins were replaced by %LOCALAPPDATA%\nvim-plugins\<name>
+
+[Setup]
 AppName=Nixvim
 AppVersion=0.1.0
 AppPublisher=nixvim
 DefaultDirName={autopf}\Nixvim
 DefaultGroupName=Nixvim
-UninstallDisplayIcon={app}\nvim-win64\bin\nvim.exe
+DisableProgramGroupPage=yes
+PrivilegesRequired=lowest
+OutputDir=.
+OutputBaseFilename=NixvimSetup
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputDir=..
-OutputBaseFilename=NixvimSetup
+UninstallDisplayIcon={app}\nvim-win64\bin\nvim.exe
 
-[files]
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[Code]
+function InitializeSetup(): Boolean;
+begin
+  if FileExists(ExpandConstant('{localappdata}\nvim\init.lua')) then
+    Result :=
+      MsgBox(
+        'Nixvim manages the whole Neovim config directory and will replace '
+        + ExpandConstant('{localappdata}\nvim') + '. Continue?',
+        mbConfirmation,
+        [mbYes, mbNo]
+      ) = mrYes
+  else
+    Result := True;
+end;
+
+[Files]
 Source: "staging\nvim\*"; DestDir: "{app}\nvim-win64"; Flags: recursesubdirs
 Source: "staging\config\*"; DestDir: "{localappdata}\nvim"; Flags: recursesubdirs createallsubdirs
 Source: "staging\plugins\*"; DestDir: "{localappdata}\nvim-plugins"; Flags: recursesubdirs createallsubdirs
 
-[tasks]
+[Tasks]
 Name: "addpath"; Description: "Add nvim.exe to PATH"; Flags: unchecked
 
 [Registry]
