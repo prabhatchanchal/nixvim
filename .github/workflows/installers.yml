@@ -150,14 +150,15 @@ jobs:
           sh bundle/install.sh
       - name: Validate the installed bundle
         run: |
-          set -u
-          sh ./installer/assert-portable.sh "$HOME/.config/nvim" "$HOME/.nixvim/plugins"
-          hygiene=$?
+          # -e is on by default here, so each status is captured through ||
+          hygiene=0
+          load=0
+          sh ./installer/assert-portable.sh "$HOME/.config/nvim" "$HOME/.nixvim/plugins" || hygiene=$?
           "$HOME/.nixvim/nvim/bin/nvim" --headless \
-            -c "luafile $GITHUB_WORKSPACE/installer/check.lua" -c "qa!" >build.log 2>&1
-          load=$?
-          if [ $hygiene -ne 0 ] || [ $load -ne 0 ]; then
-            sh ./installer/surface.sh store-report.txt build.log
+            -c "luafile $GITHUB_WORKSPACE/installer/check.lua" -c "qa!" >build.log 2>&1 || load=$?
+          printf 'hygiene=%s load=%s\n' "$hygiene" "$load" >validate.txt
+          if [ $((hygiene + load)) -ne 0 ]; then
+            sh ./installer/surface.sh validate.txt store-report.txt build.log
             exit 1
           fi
 
@@ -179,14 +180,14 @@ jobs:
           sh bundle/install.sh
       - name: Validate the installed bundle
         run: |
-          set -u
-          sh ./installer/assert-portable.sh "$HOME/.config/nvim" "$HOME/.nixvim/plugins"
-          hygiene=$?
+          hygiene=0
+          load=0
+          sh ./installer/assert-portable.sh "$HOME/.config/nvim" "$HOME/.nixvim/plugins" || hygiene=$?
           "$HOME/.nixvim/nvim/bin/nvim" --headless \
-            -c "luafile $GITHUB_WORKSPACE/installer/check.lua" -c "qa!" >build.log 2>&1
-          load=$?
-          if [ $hygiene -ne 0 ] || [ $load -ne 0 ]; then
-            sh ./installer/surface.sh store-report.txt build.log
+            -c "luafile $GITHUB_WORKSPACE/installer/check.lua" -c "qa!" >build.log 2>&1 || load=$?
+          printf 'hygiene=%s load=%s\n' "$hygiene" "$load" >validate.txt
+          if [ $((hygiene + load)) -ne 0 ]; then
+            sh ./installer/surface.sh validate.txt store-report.txt build.log
             exit 1
           fi
 
@@ -204,15 +205,15 @@ jobs:
       - name: Validate the installed bundle
         shell: bash
         run: |
-          set -u
-          sh ./installer/assert-portable.sh "$LOCALAPPDATA/nvim" "$LOCALAPPDATA/nvim-plugins"
-          hygiene=$?
+          hygiene=0
+          load=0
+          sh ./installer/assert-portable.sh "$LOCALAPPDATA/nvim" "$LOCALAPPDATA/nvim-plugins" || hygiene=$?
           # {autopf} resolves under LocalAppData for a lowest-privilege install
           check=$(cygpath -m "$GITHUB_WORKSPACE/installer/check.lua")
           "$LOCALAPPDATA/Programs/Nixvim/nvim-win64/bin/nvim.exe" --headless \
-            -c "luafile $check" -c "qa!" >build.log 2>&1
-          load=$?
-          if [ $hygiene -ne 0 ] || [ $load -ne 0 ]; then
-            sh ./installer/surface.sh store-report.txt build.log
+            -c "luafile $check" -c "qa!" >build.log 2>&1 || load=$?
+          printf 'hygiene=%s load=%s\n' "$hygiene" "$load" >validate.txt
+          if [ $((hygiene + load)) -ne 0 ]; then
+            sh ./installer/surface.sh validate.txt store-report.txt build.log
             exit 1
           fi

@@ -18,6 +18,7 @@ done
 
 if [ ! -s "$files" ]; then
   rm -f "$files"
+  printf 'clean: no /nix/store references in the given trees\n' >"$report"
   exit 0
 fi
 
