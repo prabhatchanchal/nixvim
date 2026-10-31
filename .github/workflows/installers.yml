@@ -37,11 +37,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
       - name: Build nixvim
-        run: nix build --no-link --print-out-paths './installer#packages.${{ matrix.system }}.default' > outpath
+        run: nix build --out-link nvim-result './installer#packages.${{ matrix.system }}.default'
       - name: Export nix closure into a relocatable archive
         run: |
+          OUT=$(cd nvim-result && pwd -P)
           mkdir -p archive/store
-          nix copy --no-check-sigs --to "file://$(pwd)/archive/store" "$(cat outpath)"
+          nix copy --no-check-sigs --to "file://$(pwd)/archive/store" "$OUT"
           cat > archive/restore.sh <<'EOF'
           #!/usr/bin/env bash
           # Imports the bundled closure into your local nix store, then prints the nvim path.
@@ -50,7 +51,7 @@ jobs:
           nix copy --from "file://$(pwd)/store" --to store
           cat outpath.txt
           EOF
-          cp outpath archive/outpath.txt
+          echo "$OUT/bin/nvim" > archive/outpath.txt
           tar -czf nixvim-${{ matrix.system }}.tar.gz -C archive .
       - uses: actions/upload-artifact@v4
         with:
@@ -63,21 +64,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
       - name: Build payload (generated config + vendored plugin sources)
-        run: nix build --no-link --print-out-paths './installer#packages.x86_64-linux.windowsPayload' > payload-path
+        run: nix build --out-link payload-link './installer#packages.x86_64-linux.windowsPayload'
       - name: Rewrite nix store paths to a local plugin root
         run: |
           set -euo pipefail
-          PAYLOAD=$(cat payload-path)
-          mkdir -p staging
-          cp -r --no-preserve=all "$PAYLOAD/config" staging/
-          cp -r --no-preserve=all "$PAYLOAD/plugins" staging/
-          awk -F '\t' '{ printf "s|%s|%s|g\n", $1, $2 }' staging/mapping.tsv > /tmp/rewrite.sed
-          find staging -type f -print0 | xargs -0 sed -i -f /tmp/rewrite.sed
-          # Anything still pointing at the store is not portable (compiled deps)
-          if grep -rq '/nix/store/' staging/config; then
-            echo "::warning::unrewritten /nix/store references remain in the config"
-            grep -rhoE '/nix/store/[a-z0-9]{32}-[A-Za-z0-9+._?=-]+' staging/config | sort -u | head -20
-          fi
+          PAYLOAD=$(cd payload-link && pwd -P)
+          bash ./installer/windows/rewrite.sh "$PAYLOAD" staging
           tar -czf windows-staging.tar.gz -C staging .
       - uses: actions/upload-artifact@v4
         with:
