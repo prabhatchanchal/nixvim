@@ -1,19 +1,17 @@
 # Collects the generated config + every vim-plugin source referenced by the
-# nixvim config into one payload. Used by the Windows installer job: nix
-# cannot build a native Windows closure, but lua-only plugin *sources* are
-# portable; store paths in the generated config are rewritten to local
-# plugin dirs at packaging time (see mapping.json consumer in the workflow).
+# nixvim config into one portable payload for the Windows installer.
+#
+# Standalone nixvim bakes /nix/store paths into the config (VIMINIT points at
+# build.initFile, runtimepath entries point at plugin derivations). Neovim
+# expands `$VAR` and `~` in path options, so the CI job rewrites those store
+# paths to `$LOCALAPPDATA/...` references — user-independent, no relocation
+# of binaries needed since only lua/vimscript sources are portable.
 {
   lib,
   runCommand,
-  system ? "x86_64-linux",
+  configuration,
 }:
 let
-  evaluated = builtins.getFlake (toString ./..);
-  configuration = evaluated.lib.nixvim.evalNixvim {
-    inherit system;
-    modules = [ ./config/nixvim-config.nix ];
-  };
   cfg = configuration.config;
 
   pluginPackages = lib.unique (
@@ -24,19 +22,28 @@ let
     ++ cfg.extraPlugins
   );
 
-  # { "/nix/store/hash-name" = "name"; ... } for the CI rewrite step
-  pathToName = lib.listToAttrs (
-    map (pkg: lib.nameValuePair (toString pkg) (lib.getName pkg)) pluginPackages
-  );
+  configRoot = "$LOCALAPPDATA/nvim";
+  pluginsRoot = "$LOCALAPPDATA/nvim-plugins";
+
+  # { "/nix/store/hash-name" = "<local target>"; ... } for the CI rewrite step
+  rewriteTargets =
+    (lib.listToAttrs (
+      map (pkg: lib.nameValuePair (toString pkg) "${pluginsRoot}/${lib.getName pkg}") pluginPackages
+    )
+    // {
+      "${cfg.build.extraFiles}" = configRoot;
+      "${cfg.build.initFile}" = "${configRoot}/init.lua";
+    });
 in
 runCommand "nixvim-windows-payload" { }
   ''
     mkdir -p $out/plugins $out/config
-    cp -r --no-preserve=all ${cfg.build.extraFiles}/nvim/* $out/config/
+    cp -rL --no-preserve=all ${cfg.build.extraFiles}/. $out/config/
+    cp --no-preserve=all ${cfg.build.initFile} $out/config/init.lua
     ${lib.concatMapStringsSep "\n" (
-      pkg: ''cp -r --no-preserve=all ${pkg} "$out/plugins/${lib.getName pkg}"''
+      pkg: ''cp -rL --no-preserve=all ${pkg} "$out/plugins/${lib.getName pkg}"''
     ) pluginPackages}
     cat > $out/mapping.json <<JSON
-    ${builtins.toJSON pathToName}
+    ${builtins.toJSON rewriteTargets}
     JSON
   ''

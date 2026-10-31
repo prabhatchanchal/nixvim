@@ -28,7 +28,7 @@
         {
           checks.default = configuration.config.build.test;
           packages.default = configuration.config.build.package;
-          packages.windowsPayload = pkgs.callPackage ./collect.nix { inherit system; };
+          packages.windowsPayload = pkgs.callPackage ./collect.nix { inherit configuration; };
         };
     };
 }

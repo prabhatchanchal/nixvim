@@ -16,8 +16,8 @@ jobs:
       - name: Bundle nixvim into a self-contained executable
         run: |
           nix bundle --bundler github:NixOS/bundlers#toBZ2 \
-            './installer#packages.x86_64-linux.default'
-          cp result-bin/* nixvim.x86_64-linux.bin
+            ./installer#packages.x86_64-linux.default
+          cp -L result nixvim.x86_64-linux.bin
           chmod +x nixvim.x86_64-linux.bin
       - uses: actions/upload-artifact@v4
         with:
@@ -27,11 +27,11 @@ jobs:
   macos:
     strategy:
       matrix:
+        # Apple Silicon. Intel macs: add { runner: macos-15-intel, system: x86_64-darwin }
+        # only after confirming that label is available on this org.
         include:
           - runner: macos-14
             system: aarch64-darwin
-          - runner: macos-13
-            system: x86_64-darwin
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -71,14 +71,13 @@ jobs:
           mkdir -p staging
           cp -r --no-preserve=all "$PAYLOAD/config" staging/
           cp -r --no-preserve=all "$PAYLOAD/plugins" staging/
-          jq 'to_entries[] | [.key, .value] | @tsv' -r staging/mapping.json > map.tsv
-          PLUGINS_ROOT='C:/ProgramData/Nixvim/plugins'
-          find staging -type f -print0 | while IFS= read -r -d '' f; do
-            while IFS=$'\t' read -r path name; do
-              [ -f "$f" ] || continue
-              sed -i "s|$path|$PLUGINS_ROOT/$name|g" "$f"
-            done < map.tsv
-          done
+          jq -r 'to_entries[] | "s|\(.key)|\(.value)|g"' staging/mapping.json > /tmp/rewrite.sed
+          find staging -type f -print0 | xargs -0 sed -i -f /tmp/rewrite.sed
+          # Anything still pointing at the store is not portable (compiled deps)
+          if grep -rq '/nix/store/' staging/config; then
+            echo "::warning::unrewritten /nix/store references remain in the config"
+            grep -rho '/nix/store/[^\"]*' staging/config | sort -u | head -20
+          fi
           tar -czf windows-staging.tar.gz -C staging .
       - uses: actions/upload-artifact@v4
         with:

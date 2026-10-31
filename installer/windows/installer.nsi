@@ -19,7 +19,7 @@ OutputBaseFilename=NixvimSetup
 [files]
 Source: "staging\nvim\*"; DestDir: "{app}\nvim-win64"; Flags: recursesubdirs
 Source: "staging\config\*"; DestDir: "{localappdata}\nvim"; Flags: recursesubdirs createallsubdirs
-Source: "staging\plugins\*"; DestDir: "{commonappdata}\Nixvim\plugins"; Flags: recursesubdirs createallsubdirs
+Source: "staging\plugins\*"; DestDir: "{localappdata}\nvim-plugins"; Flags: recursesubdirs createallsubdirs
 
 [tasks]
 Name: "addpath"; Description: "Add nvim.exe to PATH"; Flags: unchecked
