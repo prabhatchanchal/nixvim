@@ -33,7 +33,6 @@ jobs:
       - name: Surface the build log
         if: failure()
         run: sh ./installer/surface.sh build.log
-
       - uses: actions/upload-artifact@v5
         with:
           name: nixvim-x86_64-linux
@@ -50,7 +49,8 @@ jobs:
           nix build --accept-flake-config --no-link --print-out-paths \
             './installer#packages.x86_64-linux.windowsPayload' \
             './installer#packages.x86_64-linux.macosPayload' > out-paths.txt 2> build.log
-          [ $? -eq 0 ] || exit 1
+          rc=$?
+          [ $rc -eq 0 ] || exit $rc
       - name: Stage each target
         run: |
           set -eu
@@ -65,7 +65,6 @@ jobs:
       - name: Surface the build log
         if: failure()
         run: sh ./installer/surface.sh build.log
-
       - uses: actions/upload-artifact@v5
         with:
           name: windows-staging
@@ -97,7 +96,6 @@ jobs:
           curl -fsSLO "https://github.com/neovim/neovim/releases/latest/download/nvim-macos-${{ matrix.arch }}.tar.gz"
           tar -xzf "nvim-macos-${{ matrix.arch }}.tar.gz" -C staging/nvim --strip-components=1
           tar -czf "nixvim-macos-${{ matrix.arch }}.tar.gz" -C staging .
-
       - uses: actions/upload-artifact@v5
         with:
           name: nixvim-macos-${{ matrix.arch }}
@@ -130,26 +128,92 @@ jobs:
                          'installer\windows\staging\plugins') {
             if (-not (Test-Path $p)) { throw "missing: $p" }
           }
-      - name: Locate Inno Setup
-        run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) {
-            Get-ChildItem "${env:ProgramFiles(x86)}" -Filter 'Inno*'
-            throw "not found: $iscc"
-          }
-          Set-Content -Path iscc-path.txt -Value $iscc
       - name: Compile installer
         shell: powershell
         run: |
-          & (Get-Content iscc-path.txt) installer\windows\installer.nsi *>&1 |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\windows\installer.nsi *>&1 |
             Tee-Object -FilePath build.log
           exit $LASTEXITCODE
       - name: Surface the compiler log
         if: failure()
         shell: bash
         run: sh ./installer/surface.sh build.log
-
       - uses: actions/upload-artifact@v5
         with:
           name: nixvim-windows
           path: installer\windows\NixvimSetup.exe
+
+  smoke-linux:
+    needs: linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v5
+        with:
+          name: nixvim-x86_64-linux
+          path: drop
+      # GitHub runners have no FUSE, so the AppImage has to unpack itself
+      - name: Load plugins through the bundled config
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          set -eu
+          chmod +x drop/nixvim.x86_64-linux.AppImage
+          ./drop/nixvim.x86_64-linux.AppImage --headless \
+            -c "luafile $GITHUB_WORKSPACE/installer/check.lua" -c "qa!"
+
+  smoke-macos:
+    needs: macos
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v5
+        with:
+          name: nixvim-macos-arm64
+          path: drop
+      - name: Install the bundle
+        run: |
+          set -eu
+          mkdir bundle
+          tar -xzf drop/nixvim-macos-arm64.tar.gz -C bundle
+          sh bundle/install.sh
+      - name: Confirm no store paths survived
+        run: |
+          set -eu
+          if grep -rq '/nix/store/' "$HOME/.config/nvim" "$HOME/.nixvim/plugins"; then
+            grep -rl '/nix/store/' "$HOME/.config/nvim" "$HOME/.nixvim/plugins"
+            exit 1
+          fi
+      - name: Load plugins through the installed config
+        run: |
+          set -eu
+          "$HOME/.nixvim/nvim/bin/nvim" --headless \
+            -c "luafile $GITHUB_WORKSPACE/installer/check.lua" -c "qa!"
+
+  smoke-windows:
+    needs: windows-installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v5
+        with:
+          name: nixvim-windows
+          path: drop
+      - name: Run the installer
+        run: Start-Process -Wait -FilePath drop\NixvimSetup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART'
+      - name: Confirm no store paths survived
+        shell: bash
+        run: |
+          set -eu
+          if grep -rq '/nix/store/' "$LOCALAPPDATA/nvim" "$LOCALAPPDATA/nvim-plugins"; then
+            grep -rl '/nix/store/' "$LOCALAPPDATA/nvim" "$LOCALAPPDATA/nvim-plugins"
+            exit 1
+          fi
+      - name: Load plugins through the installed config
+        shell: bash
+        run: |
+          set -eu
+          # {autopf} resolves under LocalAppData for a lowest-privilege install
+          check=$(cygpath -m "$GITHUB_WORKSPACE/installer/check.lua")
+          "$LOCALAPPDATA/Programs/Nixvim/nvim-win64/bin/nvim.exe" --headless \
+            -c "luafile $check" -c "qa!"
