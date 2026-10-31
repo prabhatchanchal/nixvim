@@ -1,20 +1,31 @@
-#!/usr/bin/env bash
-# Rewrites /nix/store paths in the collected payload to portable $LOCALAPPDATA
-# paths, so the config works against a stock Windows Neovim.
+#!/bin/sh
+# Rewrites /nix/store paths in the collected payload to the portable roots the
+# installer unpacks to, so the config works against a stock Neovim.
+# Runs on both Linux and macOS, so no GNU-only flags here.
 #
-# Usage: rewrite.sh <payload> <dest-staging-dir>
-set -euo pipefail
+# Usage: portable-rewrite.sh <payload> <dest-staging-dir>
+set -eu
 
 payload=$1
 dest=$2
 
 rm -rf "$dest"
 mkdir -p "$dest"
-cp -rL --no-preserve=all "$payload/config" "$dest/"
-cp -rL --no-preserve=all "$payload/plugins" "$dest/"
+cp -RL "$payload/config" "$dest/"
+cp -RL "$payload/plugins" "$dest/"
+# the store is read-only; cp -RL carries those modes over
+chmod -R u+w "$dest"
 
 awk -F '\t' '{ printf "s|%s|%s|g\n", $1, $2 }' "$payload/mapping.tsv" > "$dest/rewrite.sed"
-find "$dest/config" "$dest/plugins" -type f -print0 | xargs -0 sed -i -f "$dest/rewrite.sed"
+
+find "$dest/config" "$dest/plugins" -type f -exec sh -c '
+  sedfile=$1
+  shift
+  for f in "$@"; do
+    sed -f "$sedfile" "$f" > "$f.rewritten" && mv "$f.rewritten" "$f"
+  done
+' _ "$dest/rewrite.sed" {} +
+
 rm "$dest/rewrite.sed"
 
 # Anything still pointing at the store is a compiled dependency we cannot

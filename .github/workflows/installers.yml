@@ -1,5 +1,9 @@
 name: Build installers
 
+# The portable payloads (generated config + vendored plugin sources) are pure
+# data, so every one of them is built from the x86_64-linux evaluation and
+# paired with the matching official Neovim release. Nothing installed on the
+# target machine needs Nix.
 on:
   workflow_dispatch:
   push:
@@ -7,91 +11,106 @@ on:
       - installer/**
       - .github/workflows/installers.yml
 
+# report.sh files failures as issues; job logs here are not readable anonymously
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
-      - name: Bundle nixvim into a self-contained executable
+      - name: Bundle nixvim into a self-contained AppImage
         run: |
           set +e
-          out=$(nix bundle --accept-flake-config --out-link appimage-link \
+          nix bundle --accept-flake-config --out-link appimage-link \
             --bundler github:NixOS/bundlers#toAppImage \
-            './installer#packages.x86_64-linux.default' 2>&1)
+            './installer#packages.x86_64-linux.default' > build.log 2>&1
           rc=$?
-          # mirror into the public step summary: job logs require auth
-          printf '```\n%s\n```\n' "$out" >> "$GITHUB_STEP_SUMMARY"
-          if [ $rc -eq 0 ]; then
-            cp -L appimage-link nixvim.x86_64-linux.AppImage
-            chmod +x nixvim.x86_64-linux.AppImage
-          fi
-          exit $rc
+          cat build.log
+          [ $rc -eq 0 ] || exit $rc
+          cp -L appimage-link nixvim.x86_64-linux.AppImage
+          chmod +x nixvim.x86_64-linux.AppImage
+      - name: Report failure publicly
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: sh ./installer/report.sh build.log linux
       - uses: actions/upload-artifact@v5
         with:
           name: nixvim-x86_64-linux
           path: nixvim.x86_64-linux.AppImage
 
-  macos:
-    strategy:
-      matrix:
-        # Apple Silicon. Intel macs: add { runner: macos-15-intel, system: x86_64-darwin }
-        # only after confirming that label is available on this org.
-        include:
-          - runner: macos-14
-            system: aarch64-darwin
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v31
-      - name: Build nixvim
-        run: nix build --out-link nvim-result './installer#packages.${{ matrix.system }}.default'
-      - name: Export nix closure into a relocatable archive
-        run: |
-          OUT=$(cd nvim-result && pwd -P)
-          mkdir -p archive/store
-          nix copy --no-check-sigs --to "file://$(pwd)/archive/store" "$OUT"
-          cat > archive/restore.sh <<'EOF'
-          #!/usr/bin/env bash
-          # Imports the bundled closure into your local nix store, then prints the nvim path.
-          set -euo pipefail
-          cd "$(dirname "$0")"
-          nix copy --from "file://$(pwd)/store" --to store
-          cat outpath.txt
-          EOF
-          echo "$OUT/bin/nvim" > archive/outpath.txt
-          tar -czf nixvim-${{ matrix.system }}.tar.gz -C archive .
-      - uses: actions/upload-artifact@v5
-        with:
-          name: nixvim-${{ matrix.system }}
-          path: nixvim-${{ matrix.system }}.tar.gz
-
-  prepare-windows-payload:
+  prepare-payload:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
-      - name: Build payload (generated config + vendored plugin sources)
+      - name: Build payloads (generated config + vendored plugin sources)
         run: |
           set +e
-          out=$(nix build --accept-flake-config --out-link payload-link \
-            './installer#packages.x86_64-linux.windowsPayload' 2>&1)
+          nix build --accept-flake-config --no-link --print-out-paths \
+            './installer#packages.x86_64-linux.windowsPayload' \
+            './installer#packages.x86_64-linux.macosPayload' > out-paths.txt 2> build.log
           rc=$?
-          { echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-          exit $rc
-      - name: Rewrite nix store paths to a local plugin root
+          cat build.log
+          [ $rc -eq 0 ] || exit $rc
+      - name: Stage each target
         run: |
-          set -euo pipefail
-          PAYLOAD=$(cd payload-link && pwd -P)
-          bash ./installer/windows/rewrite.sh "$PAYLOAD" staging
-          tar -czf windows-staging.tar.gz -C staging .
+          set -eu
+          {
+            sh ./installer/portable-rewrite.sh "$(sed -n '1p' out-paths.txt)" staging-windows
+            sh ./installer/portable-rewrite.sh "$(sed -n '2p' out-paths.txt)" staging-macos
+          } 2>&1 | tee -a build.log
+          cp ./installer/macos/install.sh staging-macos/
+          chmod +x staging-macos/install.sh
+          tar -czf windows-staging.tar.gz -C staging-windows .
+          tar -czf macos-staging.tar.gz -C staging-macos .
+      - name: Report failure publicly
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: sh ./installer/report.sh build.log prepare-payload
       - uses: actions/upload-artifact@v5
         with:
           name: windows-staging
           path: windows-staging.tar.gz
+      - uses: actions/upload-artifact@v5
+        with:
+          name: macos-staging
+          path: macos-staging.tar.gz
+
+  macos:
+    needs: prepare-payload
+    strategy:
+      matrix:
+        # Apple ships one Neovim runtime per arch; the payload is arch-neutral.
+        arch:
+          - arm64
+          - x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: macos-staging
+          path: drop
+      - name: Add the stock Neovim runtime
+        run: |
+          set -eu
+          mkdir -p staging/nvim
+          tar -xzf drop/macos-staging.tar.gz -C staging
+          curl -fsSLO "https://github.com/neovim/neovim/releases/latest/download/nvim-macos-${{ matrix.arch }}.tar.gz"
+          tar -xzf "nvim-macos-${{ matrix.arch }}.tar.gz" -C staging/nvim --strip-components=1
+          tar -czf "nixvim-macos-${{ matrix.arch }}.tar.gz" -C staging .
+      - uses: actions/upload-artifact@v5
+        with:
+          name: nixvim-macos-${{ matrix.arch }}
+          path: nixvim-macos-${{ matrix.arch }}.tar.gz
 
   windows-installer:
-    needs: prepare-windows-payload
+    needs: prepare-payload
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -101,19 +120,30 @@ jobs:
           path: drop
       - name: Unpack payload
         run: |
-          mkdir installer\windows\staging
+          mkdir -Force installer\windows\staging | Out-Null
           tar -xzf drop\windows-staging.tar.gz -C installer\windows\staging
       - name: Fetch official Neovim win64
         run: |
-          Invoke-WebRequest "https://github.com/neovim/neovim/releases/latest/download/nvim-win64.zip" -OutFile nvim-win64.zip
-          Expand-Archive nvim-win64.zip -DestinationPath installer\windows\
-          Move-Item installer\windows\nvim-win64 installer\windows\staging\nvim
+          $url = "https://github.com/neovim/neovim/releases/latest/download/nvim-win64.zip"
+          Invoke-WebRequest $url -OutFile nvim-win64.zip
+          Expand-Archive nvim-win64.zip -DestinationPath nvim-tmp
+          Move-Item nvim-tmp\nvim-win64 installer\windows\staging\nvim
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
       - name: Build installer
         shell: powershell
         run: |
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\windows\installer.nsi
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          $log = & $iscc installer\windows\installer.nsi 2>&1
+          $log | ForEach-Object { Write-Host $_ }
+          $log | Out-File -Encoding utf8 build.log
+          exit $LASTEXITCODE
+      - name: Report failure publicly
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: sh ./installer/report.sh build.log windows-installer
       - uses: actions/upload-artifact@v5
         with:
           name: nixvim-windows

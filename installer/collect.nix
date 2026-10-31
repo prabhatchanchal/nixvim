@@ -1,16 +1,23 @@
-# Builds the portable payload for the Windows installer.
+# Builds the portable payload used by the Windows and macOS installers.
 #
 # Standalone nixvim puts plugin paths on the runtimepath through flags baked
 # into its neovim *wrapper script*, and injects init.lua via VIMINIT. A stock
-# Windows neovim has neither, so this reconstructs an equivalent config:
-#   - runtimepath entries appended from $LOCALAPPDATA/nvim-plugins/<name>
-#   - the generated init.lua, with linux host-provider lines stripped
+# neovim from the official release archives has neither, so this reconstructs
+# an equivalent config:
+#   - runtimepath entries appended from <pluginRoot>/<name>
+#   - the generated init.lua, with host-provider lines stripped
 # Compiled dependencies (ruby/python providers, external tools) cannot be
 # relocated, so they are reported in needs-binaries.txt.
+#
+# configRoot/pluginRoot are the *end-user* paths the installer drops files at;
+# they are emitted verbatim, so they may contain shell variables that neovim
+# expands at startup ($LOCALAPPDATA on windows, $HOME on unix).
 {
   lib,
   runCommand,
   configuration,
+  configRoot ? "$LOCALAPPDATA/nvim",
+  pluginRoot ? "$LOCALAPPDATA/nvim-plugins",
 }:
 let
   cfg = configuration.config;
@@ -45,13 +52,17 @@ let
     map (
       pkg:
       ''
-        vim.opt.runtimepath:append(vim.fn.expand("$LOCALAPPDATA/nvim-plugins/${pluginName pkg}"))
+        vim.opt.runtimepath:append(vim.fn.expand("${pluginRoot}/${pluginName pkg}"))
       ''
     ) pluginPackages
   );
 
+  # the roots reach bash inside double quotes, so their `$` must be escaped to
+  # survive into mapping.tsv rather than expanding to nothing
+  escapeRoot = lib.replaceStrings [ "$" ] [ "\\$" ];
+
 in
-runCommand "nixvim-windows-payload" { }
+runCommand "nixvim-portable-payload" { }
   ''
     set -euo pipefail
     mkdir -p $out/plugins $out/config
@@ -71,9 +82,9 @@ runCommand "nixvim-windows-payload" { }
     ) pluginPackages}
 
     ${lib.concatMapStringsSep "\n" (
-      pkg: ''printf '%s\t%s\n' '${toString pkg}' "\$LOCALAPPDATA/nvim-plugins/${pluginName pkg}" >> $out/mapping.tsv''
+      pkg: ''printf '%s\t%s\n' '${toString pkg}' "${escapeRoot pluginRoot}/${pluginName pkg}" >> $out/mapping.tsv''
     ) pluginPackages}
-    printf '%s\t%s\n' '${toString cfg.build.extraFiles}' "\$LOCALAPPDATA/nvim" >> $out/mapping.tsv
+    printf '%s\t%s\n' '${toString cfg.build.extraFiles}' "${escapeRoot configRoot}" >> $out/mapping.tsv
 
     printf '%s\n' ${lib.concatMapStringsSep " " (p: "\"${pluginName p}\"") cfg.extraPackages} \
       > $out/needs-binaries.txt

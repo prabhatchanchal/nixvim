@@ -30,6 +30,12 @@
           packages.default = configuration.config.build.package;
 
           packages.windowsPayload = pkgs.callPackage ./collect.nix { inherit configuration; };
+
+          packages.macosPayload = pkgs.callPackage ./collect.nix {
+            inherit configuration;
+            configRoot = "$HOME/.config/nvim";
+            pluginRoot = "$HOME/.nixvim/plugins";
+          };
         };
     };
 }
