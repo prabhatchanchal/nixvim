@@ -43,6 +43,12 @@
     name = "George Bals";
     source = "nixpkgs";
   };
+  Che-0129 = {
+    github = "Che-0129";
+    githubId = 95518809;
+    name = "Che-0129";
+    source = "nixvim";
+  };
   DataHearth = {
     email = "dev@antoine-langlois.net";
     github = "DataHearth";
@@ -53,14 +59,6 @@
       }
     ];
     name = "DataHearth";
-    source = "nixpkgs";
-  };
-  Eveeifyeve = {
-    email = "eveeg1971@gmail.com";
-    github = "Eveeifyeve";
-    githubId = 88671402;
-    matrix = "@eveeifyeve:matrix.org";
-    name = "Eveeifyeve";
     source = "nixpkgs";
   };
   FKouhai = {
@@ -77,9 +75,9 @@
     name = "Filippo Airaldi";
     source = "nixpkgs";
   };
-  Fovir-GitHub = {
+  FovirDev = {
     email = "fovir@disroot.org";
-    github = "Fovir-GitHub";
+    github = "FovirDev";
     githubId = 175422207;
     name = "Fovir";
     source = "nixpkgs";
@@ -146,6 +144,13 @@
     github = "NickHu";
     githubId = 450276;
     name = "Nick Hu";
+    source = "nixpkgs";
+  };
+  PierreBorine = {
+    email = "nixpkgs@thecakeis.top";
+    github = "PierreBorine";
+    githubId = 85021467;
+    name = "Pierre Borine";
     source = "nixpkgs";
   };
   alisonjenkins = {
@@ -244,6 +249,14 @@
     githubId = 50964650;
     name = "gwen";
     source = "nixvim";
+  };
+  eveeifyeve = {
+    email = "open-source@eveeifyeve.dev";
+    github = "eveeifyeve";
+    githubId = 88671402;
+    matrix = "@eveeifyeve:matrix.org";
+    name = "Eveeifyeve";
+    source = "nixpkgs";
   };
   f4z3r = {
     email = "f4z3r-github@pm.me";
@@ -353,6 +366,18 @@
     github = "khaneliman";
     githubId = 1778670;
     name = "Austin Horstman";
+    source = "nixpkgs";
+  };
+  libewa = {
+    email = "linus@libewa.xyz";
+    github = "libewa";
+    githubId = 67926131;
+    keys = [
+      {
+        fingerprint = "EBD0 29E0 73D2 959A 9DC1  A74A 7BCA 3874 C2A0 475C";
+      }
+    ];
+    name = "Linus Warnatz";
     source = "nixpkgs";
   };
   loicreynier = {

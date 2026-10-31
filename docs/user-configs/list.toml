@@ -50,7 +50,7 @@ description = "NixVim config, with format/lsp/debug configurations for Rust, Go,
 owner = "GaetanLepage"
 title = "nix-config"
 description = "Home-manager"
-url = "https://github.com/GaetanLepage/nix-config/tree/master/modules/home/core/programs/neovim"
+url = "https://github.com/GaetanLepage/nix-config/tree/master/modules/home/dev/_dev/programs/neovim"
 
 [[config]]
 owner = "gwg313"
@@ -190,7 +190,7 @@ url = "https://github.com/literally-sai/vermvim"
 owner = "carl0xs"
 title = "nixcfg"
 description = "Nix configuration setup, including nixvim"
-url = "https://github.com/carl0xs/nixcfg/blob/main/modules/workstation/neovim.nix"
+url = "https://github.com/carl0xs/nixcfg/blob/main/modules/nvim/default.nix"
 
 [[config]]
 owner = "ar-at-localhost"
@@ -207,3 +207,8 @@ description = "Standalone NixVim config for x86_64-linux featuring 25 language s
 owner = "allen-liaoo"
 repo = "nvimx"
 description = "Project based, modular Neovim. Contains language-specific presets."
+
+[[config]]
+owner = "rbpatt2019"
+repo = "minixvim"
+description = "A nixvim configuration powered (mostly) by mini.nvim"

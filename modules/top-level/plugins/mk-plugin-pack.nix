@@ -12,7 +12,9 @@ let
   overridePlugin =
     plugin:
     plugin.plugin.overrideAttrs (prev: {
-      nativeBuildInputs = lib.remove vimUtils.vimGenDocHook prev.nativeBuildInputs or [ ];
+      nativeBuildInputs = builtins.filter (
+        drv: lib.getName drv != "vim-gen-doc-hook"
+      ) prev.nativeBuildInputs or [ ];
       configurePhase = ''
         ${prev.configurePhase or ""}
         rm -vf doc/tags'';
@@ -31,6 +33,15 @@ let
       (builtins.catAttrs "python3Dependencies")
       (builtins.concatMap (f: f ps))
     ];
+
+  # nixpkgs reads `plugin.runtimeDeps` in plugin-submodule.nix to suffix PATH
+  # in the neovim wrapper when `autowrapRuntimeDeps` is enabled.
+  runtimeDeps = lib.pipe pluginsToCombine [
+    (builtins.catAttrs "plugin")
+    (builtins.catAttrs "runtimeDeps")
+    builtins.concatLists
+    lib.unique
+  ];
 
   requiredLuaModules = lib.pipe pluginsToCombine [
     (builtins.catAttrs "plugin")
@@ -63,7 +74,11 @@ let
           fixupPhase
         '';
         passthru = {
-          inherit python3Dependencies;
+          # The wrapper reads these, not the pack build. `python3Dependencies`
+          # is a function, which a derivation attribute cannot hold.
+          # `runtimeDeps` as one would pull every dependency into the pack's
+          # build closure.
+          inherit python3Dependencies runtimeDeps;
         };
       }
       [

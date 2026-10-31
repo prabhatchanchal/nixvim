@@ -13,6 +13,31 @@ let
   };
 
   disabledPackages = [
+    # TODO: 2026-10-05 semgrep requires pyjwt ~=2.13.0, but nixpkgs provides 2.14.0
+    # https://github.com/NixOS/nixpkgs/pull/569851
+    "semgrep"
+
+    # TODO: 2026-10-05 re-enable once https://github.com/NixOS/nixpkgs/pull/569679 hits flake.lock
+    "aider-chat"
+    "aider.nvim"
+
+    # 2026-09-20: lean4 install prefix build failure
+    # Re-enable when a future lockfile includes https://github.com/NixOS/nixpkgs/pull/563148.
+    "lean4"
+
+    # 2026-08-16: broken dependency "sv-lang"
+    "veridian"
+
+    # 2026-07-12: build failure: cpplint_unittest.py:7209: AssertionError
+    "cpplint"
+
+    # 2026-07-12 transitive broken dependency: py-evm-0.12.1-beta.1 not supported for interpreter python3.14
+    "slither-analyzer"
+
+    # 2026-07-02 insecure dependency (pnpm-9.15.9)
+    "stylelint-lsp"
+    "vue-language-server"
+
     # 2026-02-02 build failure
     "crystalline"
 
@@ -22,27 +47,35 @@ let
     # 2026-01-22 build failure
     "dmd"
 
-    # 2025-12-24: phpPackages.php-codesniffer is broken
-    # https://github.com/NixOS/nixpkgs/pull/459254#issuecomment-3689578764
-    "php-codesniffer"
-
     # 2025-11-15 dependency swift is broken
     # https://github.com/NixOS/nixpkgs/issues/461474
     "sourcekit-lsp"
     "swift-format"
 
-    # 2025-10-12 dependency mbedtls is marked as insecure
-    "haxe"
-
     # 2026-02-05: build failure
     "skim"
   ]
+  ++ lib.optionals (hostPlatform.isLinux && hostPlatform.isx86_64) [
+    # TODO: 2026-07-12 dependency swift is broken
+    "swiftformat"
+    "swift-format"
+  ]
+  ++ lib.optionals hostPlatform.isLinux [
+    # TODO: 2026-10-05 atopile fails to compile: uintptr_t requires <cstdint>
+    "atopile"
+
+    # TODO: 2026-10-05 re-enable once https://github.com/NixOS/nixpkgs/pull/569106 hits flake.lock
+    "verilator"
+
+    # 2026-07-12 dependency z3 has a build failure
+    "fstar"
+  ]
   ++ lib.optionals (hostPlatform.isLinux && hostPlatform.isAarch64) [
+    # 2026-08-09: build failure
+    "ponyc"
+
     # 2026-06-15: semgrep fails its installCheckPhase
     "semgrep"
-
-    # "tabnine"
-    "cmp-tabnine"
 
     # 2026-05-20: vectorcode is marked badPlatforms on aarch64-linux
     "vectorcode.nvim"
@@ -81,6 +114,22 @@ let
     "rustaceanvim"
   ]
   ++ lib.optionals hostPlatform.isDarwin [
+    # 2026-08-26 dependency "dtools" build failure (only in the NixBot CI)
+    # std.file.FileException@std/file.d(1091): Failed to remove file /private/tmp/rdmd_app_: Permission denied
+    "serve-d"
+
+    # 2026-08-09 build failure
+    "oxlint"
+
+    # 2026-07-12 build failure
+    "R"
+
+    # 2026-07-12 build failure
+    "godot"
+
+    # 2026-07-12 transitive build failure: qtspeech
+    "sioyek"
+
     # 2026-05-28: build failure (compiler-rt-libc)
     "ols"
 

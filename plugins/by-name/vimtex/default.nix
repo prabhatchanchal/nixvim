@@ -30,11 +30,7 @@ lib.nixvim.plugins.mkVimPlugin {
   extraOptions = {
     texlivePackage = lib.mkPackageOption pkgs "texlive" {
       nullable = true;
-      default = [
-        "texlive"
-        "combined"
-        "scheme-medium"
-      ];
+      default = "texliveMedium";
     };
 
     xdotoolPackage = lib.mkPackageOption pkgs "xdotool" {
@@ -63,7 +59,7 @@ lib.nixvim.plugins.mkVimPlugin {
     extraPackages =
       let
         # xdotool does not exist on darwin
-        xdotool = lib.optional pkgs.stdenv.isLinux cfg.xdotoolPackage;
+        xdotool = lib.optional pkgs.stdenv.hostPlatform.isLinux cfg.xdotoolPackage;
         viewerPackages =
           {
             general = xdotool;

@@ -3,11 +3,13 @@
     # keep-sorted start block=yes newline_separated=no
     "ada_ls"
     "agda_ls"
+    "agentscript"
     "alloy_ls"
     "anakin_language_server"
     "ansiblels"
     "antlersls"
     "apex_ls"
+    "armls"
     "autohotkey_lsp"
     "awk_ls"
     "azure_pipelines_ls"
@@ -26,6 +28,7 @@
     "cir_lsp_server"
     "circom-lsp"
     "clarinet"
+    "clice"
     "cobol_ls"
     "coffeesense"
     "contextive"
@@ -50,6 +53,7 @@
     "esbonio"
     "expert"
     "facility_language_server"
+    "fallow"
     "fennel_language_server"
     "flux_lsp"
     "foam_ls"
@@ -80,13 +84,16 @@
     "hydra_lsp"
     "hylo_ls"
     "janet_lsp"
+    "jetls"
     "jls"
     "julials"
     "kakehashi"
     "kcl"
+    "kdl_lsp"
     "kotlin_lsp"
     "kulala_ls"
     "laravel_ls"
+    "laravel_lsp"
     "lean3ls"
     "lelwel_ls"
     "ltex_plus"
@@ -98,6 +105,7 @@
     "mojo"
     "motoko_lsp"
     "move_analyzer"
+    "ms_terraform_lsp"
     "msbuild_project_tools_server"
     "mutt_ls"
     "nelua_lsp"
@@ -112,6 +120,7 @@
     "pasls"
     "pbls"
     "perlls"
+    "php_lsp"
     "phptools"
     "pico8_ls"
     "please"
@@ -125,6 +134,7 @@
     "puppet"
     "purescriptls"
     "pyre"
+    "pytest_language_server"
     "r_language_server"
     "racket_langserver"
     "raku_navigator"
@@ -137,6 +147,7 @@
     "rome"
     "rpmspec"
     "ruff_lsp" # deprecated and removed from nixpkgs
+    "rust_glancer"
     "salt_ls"
     "scry" # deprecated and removed from nixpkgs
     "selene3p_ls"
@@ -162,8 +173,11 @@
     "stimulus_ls"
     "stylua3p_ls"
     "svlangserver"
+    "symfony_lsp"
+    "sysml_lsp"
     "tabby_ml"
     "termux_language_server"
+    "terragrunt_ls"
     "theme_check"
     "tsp_server"
     "turbo_ls"
@@ -183,12 +197,100 @@
     # coqPackages.vscoq-language-server is unavailable since the bump to coq 9.0: https://github.com/NixOS/nixpkgs/pull/389454
     "vscoqtop"
     "wc_language_server"
+    "wolfram_lsp"
     "yang_lsp"
     "yls"
     "ziggy"
     "ziggy_schema"
     # keep-sorted end
   ];
+
+  serverArgs = {
+    # keep-sorted start block=yes newline_separated=yes
+    gopls = {
+      description = "gopls is the official language server for Go.";
+      config = {
+        extraDescription = ''
+          Server settings belong under `settings.gopls` and are described in the [gopls settings documentation](https://go.dev/gopls/settings).
+        '';
+        example = {
+          settings.gopls.gofumpt = true;
+        };
+      };
+    };
+
+    nixd = {
+      description = "nixd is a Nix language server based on Nix libraries.";
+      config = {
+        extraDescription = ''
+          Configuration options are described in the [nixd configuration documentation](https://github.com/nix-community/nixd/blob/main/nixd/docs/configuration.md).
+
+          Replace `hostname` in the example with the relevant `nixosConfigurations` output name.
+        '';
+        example = {
+          settings.nixd.options.nixos.expr =
+            "(builtins.getFlake (builtins.toString ./.)).nixosConfigurations.hostname.options";
+        };
+      };
+    };
+
+    rust_analyzer = {
+      description = "rust-analyzer is a language server that provides IDE functionality for Rust.";
+      config = {
+        extraDescription = ''
+          Server settings belong under `settings."rust-analyzer"` and are described in the [rust-analyzer configuration documentation](https://rust-analyzer.github.io/book/configuration.html).
+        '';
+        example = {
+          settings."rust-analyzer".check.command = "clippy";
+        };
+      };
+    };
+
+    terraformls = {
+      description = "Terraform Language Server provides language features for Terraform configuration.";
+      config = {
+        extraDescription = ''
+          Terraform Language Server reads static configuration from `init_options`; `settings` is not supported. See the [Terraform Language Server settings documentation](https://github.com/hashicorp/terraform-ls/blob/main/docs/SETTINGS.md).
+        '';
+        example = {
+          init_options = {
+            ignoreSingleFileWarning = true;
+            indexing.ignoreDirectoryNames = [ ".direnv" ];
+          };
+        };
+      };
+    };
+
+    tinymist = {
+      description = "[Tinymist](https://myriad-dreamin.github.io/tinymist/) is a language server for the typesetting system [Typst](https://typst.app/docs/). This language server works well with the plugin [typst-preview](https://nix-community.github.io/nixvim/plugins/typst-preview/index.html), enabled by `plugins.typst-preview.enable = true;`";
+      config = {
+        extraDescription = ''
+          Configuration options are described in the [Tinymist documentation](https://myriad-dreamin.github.io/tinymist/config/neovim.html) with some examples [for Neovim](https://myriad-dreamin.github.io/tinymist/frontend/neovim.html#label-Configuration/). Note the extra nesting level with `setting`.
+        '';
+        example = {
+          settings = {
+            formatterMode = "typstyle";
+            formatterProseWrap = true;
+          };
+        };
+      };
+    };
+
+    yamlls = {
+      description = "YAML Language Server provides validation, completion, formatting, and schema-based intelligence for YAML.";
+      config = {
+        extraDescription = ''
+          Configuration options are described in the [YAML Language Server settings documentation](https://github.com/redhat-developer/yaml-language-server#language-server-settings).
+        '';
+        example = {
+          settings.yaml.schemas = {
+            "https://json.schemastore.org/github-workflow.json" = "/.github/workflows/*";
+          };
+        };
+      };
+    };
+    # keep-sorted end
+  };
 
   packages = {
     # keep-sorted start block=yes newline_separated=no
@@ -312,6 +414,7 @@
     matlab_ls = "matlab-language-server";
     mesonlsp = "mesonlsp";
     metals = "metals";
+    microcad_lsp = "microcad";
     millet = "millet";
     mint = "mint";
     mlir_lsp_server = [
@@ -355,6 +458,7 @@
     ];
     phpactor = "phpactor";
     phpantom_lsp = "phpantom-lsp";
+    pkl = "pkl-lsp";
     pony_lsp = "ponyc";
     postgres_lsp = "postgres-language-server";
     prismals = "prisma-language-server";
@@ -378,8 +482,6 @@
     regal = "regal";
     regols = "regols";
     rescriptls = "rescript-language-server";
-    # This is not entirely true, but the server is deprecated
-    rls = "rustup";
     roslyn_ls = "roslyn-ls";
     rubocop = "rubocop";
     ruby_lsp = "ruby-lsp";
@@ -446,6 +548,7 @@
     tombi = "tombi";
     ts_ls = "typescript-language-server";
     ts_query_ls = "ts_query_ls";
+    tsc = "typescript_7";
     tsgo = "typescript-go";
     ttags = "ttags";
     ty = "ty";

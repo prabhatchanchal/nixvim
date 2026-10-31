@@ -58,6 +58,7 @@ let
 
   docs = lib.optionalAttrs (selfPackages ? docs) {
     # Individual tests can be run using: nix build .#docs.user-configs.tests.<test>
+    docs-options = callTest ./docs-options.nix { inherit selfPackages; };
     docs-user-configs = linkFarm "user-configs-tests" selfPackages.docs.user-configs.tests;
   };
 
@@ -92,7 +93,7 @@ in
   # TODO: consider whether all these tests are needed in the `checks` output
   flakeCheck = misc // docs // platforms // packages // mainDrv;
 
-  # TODO: consider whether all these tests are needed to be built by buildbot
-  buildbot =
+  # TODO: consider whether all these tests are needed to be built by nixbot
+  nixbot =
     lib.optionalAttrs (system == "x86_64-linux") (misc // docs // mainGrouped) // platforms // packages;
 }

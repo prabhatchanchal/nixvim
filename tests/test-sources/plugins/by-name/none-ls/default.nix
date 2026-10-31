@@ -100,19 +100,16 @@
         sources =
           let
             disabled = [
-              # TODO Added 2025-12-24: phpPackages.php-codesniffer is broken
-              # https://github.com/NixOS/nixpkgs/pull/459254#issuecomment-3689578764
-              "phpcbf"
-              "phpcs"
+              # TODO: 2026-10-05 semgrep requires pyjwt ~=2.13.0, but nixpkgs provides 2.14.0
+              # https://github.com/NixOS/nixpkgs/pull/569851
+              "semgrep"
 
-              # TODO Added 2025-11-15
-              # dependency swift is broken
-              # https://github.com/NixOS/nixpkgs/issues/461474
+              # TODO: 2026-10-05 re-enable once https://github.com/NixOS/nixpkgs/pull/569106 hits flake.lock
+              "verilator"
+
+              # TODO: 2026-07-12 dependency swift is broken
+              "swiftformat"
               "swift_format"
-
-              # TODO Added 2025-10-12
-              # mbedtls is marked insecure
-              "haxe_formatter"
 
               # TODO Added 2025-04-01
               # php-cs-fixer is marked as broken

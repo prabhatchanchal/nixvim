@@ -16,6 +16,13 @@ let
 
   optionDefaultPrio = (lib.mkOptionDefault null).priority;
 
+  # lib.systems.elaborate is sensitive to Nixpkgs revision, so import a `lib` instance from the Nixpkgs revision we're constructing.
+  libForPkgs =
+    if opt.source.highestPrio == optionDefaultPrio then
+      lib
+    else
+      cfg.source.lib or (import (cfg.source + "/lib"));
+
   isConfig = x: builtins.isAttrs x || lib.isFunction x;
 
   mergeConfig =
@@ -156,7 +163,7 @@ in
       example = {
         system = "aarch64-linux";
       };
-      apply = lib.systems.elaborate;
+      apply = libForPkgs.systems.elaborate;
       defaultText = lib.literalMD ''
         - Inherited from the "host" configuration's `pkgs`
         - Or `evalNixvim`'s `system` argument
@@ -168,6 +175,12 @@ in
         To cross-compile, also set `nixpkgs.buildPlatform`.
 
         Ignored when `nixpkgs.pkgs` is set.
+
+        > [!WARNING]
+        > Avoid passing a fully elaborated platform from another Nixpkgs instance,
+        > such as `pkgs.stdenv.hostPlatform`, when `nixpkgs.source` may point to a
+        > different Nixpkgs revision. Prefer a platform spec, such as
+        > `{ inherit (pkgs.stdenv.hostPlatform) config; }`, or a system string.
       '';
     };
 
@@ -180,11 +193,11 @@ in
       apply =
         value:
         let
-          elaborated = lib.systems.elaborate value;
+          elaborated = libForPkgs.systems.elaborate value;
         in
         # If equivalent to `hostPlatform`, make it actually identical so that `==` can be used
         # See https://github.com/NixOS/nixpkgs/issues/278001
-        if lib.systems.equals elaborated cfg.hostPlatform then cfg.hostPlatform else elaborated;
+        if libForPkgs.systems.equals elaborated cfg.hostPlatform then cfg.hostPlatform else elaborated;
       defaultText = lib.literalMD ''
         Inherited from the "host" configuration's `pkgs`.
         Or `config.nixpkgs.hostPlatform` when building a standalone nixvim.
@@ -195,6 +208,12 @@ in
         Setting this option will cause Nixvim to be cross-compiled.
 
         Ignored when `nixpkgs.pkgs` is set.
+
+        > [!WARNING]
+        > Avoid passing a fully elaborated platform from another Nixpkgs instance,
+        > such as `pkgs.stdenv.buildPlatform`, when `nixpkgs.source` may point to a
+        > different Nixpkgs revision. Prefer a platform spec, such as
+        > `{ inherit (pkgs.stdenv.buildPlatform) config; }`, or a system string.
       '';
     };
 

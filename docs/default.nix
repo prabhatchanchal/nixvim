@@ -98,21 +98,19 @@ let
       inherit transformOptions;
     }).optionsJSON;
 
+  renderDocs = pkgs.callPackage ./modules/render.nix {
+    inherit lib nixvim;
+  };
 in
 lib.fix (self: {
   inherit options-json;
-  inherit (pkgs) nixos-render-docs;
-
-  gfm-alerts-to-admonitions = pkgs.python3.pkgs.callPackage ./gfm-alerts-to-admonitions { };
 
   man-docs = pkgs.callPackage ./man {
     inherit options-json;
     inherit (self) lib-docs;
   };
 
-  lib-docs = pkgs.callPackage ./lib {
-    inherit nixvim lib;
-  };
+  lib-docs = renderDocs "nixvim-lib-docs" ./lib/pages.nix;
 
   search = mkNuschtosSearch {
     optionsJSON = options-json + "/share/doc/nixos/options.json";

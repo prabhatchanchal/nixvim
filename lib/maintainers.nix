@@ -25,6 +25,11 @@
     githubId = 60232782;
     name = "Boney Patel";
   };
+  Che-0129 = {
+    github = "Che-0129";
+    githubId = 95518809;
+    name = "Che-0129";
+  };
   ChelseaWilkinson = {
     email = "mail@chelseawilkinson.me";
     github = "chelsea6502";
@@ -41,7 +46,7 @@
   };
   Fovir = {
     email = "fovir@disroot.org";
-    github = "Fovir-GitHub";
+    github = "FovirDev";
     githubId = 175422207;
     name = "Fovir";
   };

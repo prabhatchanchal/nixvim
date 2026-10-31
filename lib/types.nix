@@ -4,7 +4,6 @@ let
   inherit (lib) types;
   inherit (lib.nixvim)
     deprecation
-    mkNullOrStr
     mkNullOrOption
     ;
 
@@ -89,25 +88,25 @@ rec {
 
     # :help nvim_set_hl()
     options = with types; {
-      fg = mkNullOrStr "Color for the foreground (color name or '#RRGGBB').";
-      bg = mkNullOrStr "Color for the background (color name or '#RRGGBB').";
-      sp = mkNullOrStr "Special color (color name or '#RRGGBB').";
-      blend = mkNullOrOption (numbers.between 0 100) "Integer between 0 and 100.";
-      bold = mkNullOrOption bool "";
-      standout = mkNullOrOption bool "";
-      underline = mkNullOrOption bool "";
-      undercurl = mkNullOrOption bool "";
-      underdouble = mkNullOrOption bool "";
-      underdotted = mkNullOrOption bool "";
-      underdashed = mkNullOrOption bool "";
-      strikethrough = mkNullOrOption bool "";
-      italic = mkNullOrOption bool "";
-      reverse = mkNullOrOption bool "";
-      nocombine = mkNullOrOption bool "";
-      link = mkNullOrStr "Name of another highlight group to link to.";
-      default = mkNullOrOption bool "Don't override existing definition.";
-      ctermfg = mkNullOrStr "Sets foreground of cterm color.";
-      ctermbg = mkNullOrStr "Sets background of cterm color.";
+      fg = mkNullOrOption (maybeRaw (either int str)) "Color for the foreground (color name, '#RRGGBB', or 24-bit RGB integer).";
+      bg = mkNullOrOption (maybeRaw (either int str)) "Color for the background (color name, '#RRGGBB', or 24-bit RGB integer).";
+      sp = mkNullOrOption (maybeRaw (either int str)) "Special color (color name, '#RRGGBB', or 24-bit RGB integer).";
+      blend = mkNullOrOption (maybeRaw (numbers.between 0 100)) "Integer between 0 and 100.";
+      bold = mkNullOrOption (maybeRaw bool) "";
+      standout = mkNullOrOption (maybeRaw bool) "";
+      underline = mkNullOrOption (maybeRaw bool) "";
+      undercurl = mkNullOrOption (maybeRaw bool) "";
+      underdouble = mkNullOrOption (maybeRaw bool) "";
+      underdotted = mkNullOrOption (maybeRaw bool) "";
+      underdashed = mkNullOrOption (maybeRaw bool) "";
+      strikethrough = mkNullOrOption (maybeRaw bool) "";
+      italic = mkNullOrOption (maybeRaw bool) "";
+      reverse = mkNullOrOption (maybeRaw bool) "";
+      nocombine = mkNullOrOption (maybeRaw bool) "";
+      link = mkNullOrOption (maybeRaw (either int str)) "Name or id of another highlight group to link to.";
+      default = mkNullOrOption (maybeRaw bool) "Don't override existing definition.";
+      ctermfg = mkNullOrOption (maybeRaw (either int str)) "Sets foreground of cterm color (color name or palette index).";
+      ctermbg = mkNullOrOption (maybeRaw (either int str)) "Sets background of cterm color (color name or palette index).";
       cterm = mkNullOrOption (either str attrs) ''
         cterm attribute map, like |highlight-args|.
         If not set, cterm attributes will match those from the attribute map documented above.

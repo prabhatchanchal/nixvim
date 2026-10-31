@@ -22,14 +22,16 @@
       ];
 
       brokenTools = [
+        # TODO: 2026-07-12: build failure: cpplint_unittest.py:7209: AssertionError
+        "cpplint"
+
+        # TODO: 2026-07-12: transitive broken dependency: py-evm-0.12.1-beta.1 not supported for interpreter python3.14
+        "slither"
+
         # TODO: 2026-01-23: dmd build failure with gcc 15 (nullptr identifier)
         "dfmt"
         "dmd"
 
-        # 2025-12-24: phpPackages.php-codesniffer is broken
-        # https://github.com/NixOS/nixpkgs/pull/459254#issuecomment-3689578764
-        "phpcbf"
-        "phpcs"
       ];
 
       # TODO: respect unpackaged from generated
