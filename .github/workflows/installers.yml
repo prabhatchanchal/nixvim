@@ -15,14 +15,14 @@ jobs:
       - uses: cachix/install-nix-action@v30
       - name: Bundle nixvim into a self-contained executable
         run: |
-          nix bundle --bundler github:NixOS/bundlers#toBZ2 \
+          nix bundle --bundler github:NixOS/bundlers#toAppImage \
             ./installer#packages.x86_64-linux.default
-          cp -L result nixvim.x86_64-linux.bin
-          chmod +x nixvim.x86_64-linux.bin
+          cp -L result nixvim.x86_64-linux.AppImage
+          chmod +x nixvim.x86_64-linux.AppImage
       - uses: actions/upload-artifact@v4
         with:
           name: nixvim-x86_64-linux
-          path: nixvim.x86_64-linux.bin
+          path: nixvim.x86_64-linux.AppImage
 
   macos:
     strategy:
@@ -71,12 +71,12 @@ jobs:
           mkdir -p staging
           cp -r --no-preserve=all "$PAYLOAD/config" staging/
           cp -r --no-preserve=all "$PAYLOAD/plugins" staging/
-          jq -r 'to_entries[] | "s|\(.key)|\(.value)|g"' staging/mapping.json > /tmp/rewrite.sed
+          awk -F '\t' '{ printf "s|%s|%s|g\n", $1, $2 }' staging/mapping.tsv > /tmp/rewrite.sed
           find staging -type f -print0 | xargs -0 sed -i -f /tmp/rewrite.sed
           # Anything still pointing at the store is not portable (compiled deps)
           if grep -rq '/nix/store/' staging/config; then
             echo "::warning::unrewritten /nix/store references remain in the config"
-            grep -rho '/nix/store/[^\"]*' staging/config | sort -u | head -20
+            grep -rhoE '/nix/store/[a-z0-9]{32}-[A-Za-z0-9+._?=-]+' staging/config | sort -u | head -20
           fi
           tar -czf windows-staging.tar.gz -C staging .
       - uses: actions/upload-artifact@v4
